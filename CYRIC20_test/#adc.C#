@@ -1,0 +1,30 @@
+2.54710e+01void adc(){
+  auto c = new TCanvas("c","100um_Front",1000,1000);  
+  c->Divide(4,4,0,0);  
+  for(int i = 0; i != 16; ++i){
+    c->cd(i+1);
+    gPad->SetLogy();
+    tree->Draw(Form("ADC[0][%d]",i),Form("ADC[0][%d]>0",i));
+  }
+  auto cc = new TCanvas("cc","500um_Front",1000,1000); 
+  cc->Divide(4,4,0,0);  
+  for(int i = 0; i != 16; ++i){
+    cc->cd(i+1);
+    //gPad->SetLogy();
+    tree->Draw(Form("ADC[1][%d]",i),Form("ADC[1][%d]>0",i));
+  }
+  auto ccc = new TCanvas("ccc","500um_Rear",750,750);
+  ccc->Divide(3,3,0,0);
+  for(int i = 0; i != 8; ++i){
+    ccc->cd(i+1);
+    //gPad->SetLogy();    
+    tree->Draw(Form("ADC[2][%d]",i),Form("ADC[2][%d]>0",i));
+  }
+  auto cccc = new TCanvas("cccc","100um_Rear",750,750);
+  cccc->Divide(3,3,0,0);
+  for(int i = 0; i != 8; ++i){
+    cccc->cd(i+1);
+    //gPad->SetLogy();    
+    tree->Draw(Form("ADC[2][%d]",i+8),Form("ADC[2][%d]>0",i+8));
+  }  
+}

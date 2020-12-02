@@ -1,0 +1,35 @@
+void si_cal(std::string calfilename = "test.cal"){  
+  std::array<int, 4> IndexOfSi = {0, 1, 2, 3};
+  // 100um Front, Rear,  500um Front, Rear
+  std::cout << "Select Si:" << std::endl;
+  std::cout << Form("%d: 100um Front, %d: 100um Rear,"
+		    " %d: 500um Front, %d: 500um Rear",
+		    IndexOfSi[0], IndexOfSi[1],
+		    IndexOfSi[2], IndexOfSi[3]) << std::endl;
+  int SelectedSi;
+  std::cin >> SelectedSi;
+  if(std::find(IndexOfSi.begin(), IndexOfSi.end(), SelectedSi)
+     == IndexOfSi.end()) {
+    std::cout << "Invalid Index.." < std::endl;
+    std::cout << "Valid index: ";
+    for(const auto& x : IndexOfSi) std::cout << x << " ";
+    std::cout << std::endl;
+    return ;
+  }
+  std::ofstream ofs(calfilename);  
+  auto c = new TCanvas("c","c",400,400);
+  int Range[] = {100, 16000};
+  auto tree = (TTree*)_file0->Get("tree");
+  int MaxCh;
+  if(SelectedSi == 0) MaxCh = 16;
+  else if(SelectedSi == 2) MaxCh = 16;
+  else if(SelectedSi == 1) MaxCh = 8;
+  else if(SelectedSi == 3) MaxCh = 8;    
+  for(int iCh = 0; iCh != MaxCh; ++iCh){
+    tree->Draw(Form("ADC[%d][%d]>>h(200, %d, %d)",
+		    SelectedSi,
+		    iCh,
+		    Range[0], Range[1]));
+    
+  }
+}
