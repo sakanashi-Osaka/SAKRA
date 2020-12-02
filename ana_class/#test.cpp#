@@ -1,0 +1,68 @@
+#include "TFile.h"
+#include "TTree.h"
+#include "TObject.h"
+#include "Rtypes.h"
+
+class PhotonEvent: public TObject{
+  //class PhotonEvent{
+private:
+  double fEnergy;
+  double fL;
+  double fB;
+  double fZenithAngle;
+  int fCalibVersion[3];
+
+public:
+  void SetEnergy(double energy) {fEnergy=energy;}
+  void SetL(double l) {fL=l;}
+  void SetB(double b) {fB=b;}
+  void SetZenithAngle(double zenith) {fZenithAngle=zenith;}
+  void SetCalibVersion(int *calib){
+    for(int i=0;i<3;++i){
+      fCalibVersion[i]=calib[i];
+    }
+  }
+
+  ClassDef(PhotonEvent, 1)
+};
+
+TTree *photons_mod;
+
+struct struct_test{
+  int a;
+  double b;
+};
+
+int test(){
+  //double energy,l,b,zenith;
+  int calib[3];
+
+  //PhotonEvent event;
+  //struct_test event;
+  struct_test event[2];
+  //TFile fout("test_class.root","RECREATE");
+  photons_mod=new TTree("photons","");
+  //photons_mod->Branch("event","PhotonEvent",&event,16000,0);
+  photons_mod->Branch("event",&event);
+
+  for(int i=0;i<100;++i){
+    /*
+    event.SetEnergy(i);
+    event.SetL(2*i);
+    event.SetB(3*i);
+    event.SetZenithAngle(4*i);
+    calib[0]=i; calib[1]=2*i; calib[2]=3*i;
+    event.SetCalibVersion(calib);
+    */
+    
+    event[0].a=i;
+    event[0].b=2*i;
+    
+    photons_mod->Fill();
+  }
+
+  //photons_mod.Write();
+  //fout.Close();
+
+  return 0;
+}

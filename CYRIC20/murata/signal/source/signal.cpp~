@@ -1,0 +1,34 @@
+#include <iostream>
+#include <cmath>
+// #incldue <TFile.h>
+// #incldue <TF1.h>
+
+
+int main(){
+
+
+  double baseline = 100;
+  int pulse_begin = 10;
+  int pulse_end = 50;
+  int pulse_height = 10;
+
+  double signal = baseline;
+  double decay_time = 1000;
+
+  double input = baseline;
+  for(int i = 0; i < 100; ++i){
+
+    if(pulse_begin < i && i < pulse_end){
+      input = pulse_height;
+    }
+    else{
+      input = 0;
+    }
+    signal += input;
+    signal = (signal - baseline) * std::exp(-1/decay_time) + baseline;
+    std::cout << i << " " << input << " " << signal << std::endl;;
+    
+  }
+
+  return 0;
+}

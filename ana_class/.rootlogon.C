@@ -1,0 +1,3 @@
+{
+  gSystem->Load("libMyclass.so");
+}

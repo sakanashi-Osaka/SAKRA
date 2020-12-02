@@ -1,0 +1,16 @@
+#include <iostream>
+#include <regex>
+#include <string>
+
+int main(int argc, char *argv[]){
+  if(argc < 2)
+    return 1;
+
+  std::string obj_str = argv[1];
+  std::smatch smatch;
+    if (std::regex_search(str, smatch, std::regex("^(abc|ABC)"))){
+        // ここに来るはず
+    }
+
+
+}

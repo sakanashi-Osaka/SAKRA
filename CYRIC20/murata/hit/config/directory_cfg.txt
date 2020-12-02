@@ -1,0 +1,2 @@
+INPUT_DIR ~/exp/SAKRA/CYRIC20/root
+OUTPUT_DIR ~/exp/SAKRA/CYRIC20/murata/hit/root

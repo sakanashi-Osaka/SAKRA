@@ -1,0 +1,206 @@
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <TCanvas.h>
+#include <TEventList.h>
+#include <TH1F.h>
+#include <TH2.h>
+#include <TROOT.h>
+#include <TTree.h>
+#include <TFile.h>
+
+#define LENGTH 4096
+#define noise_flag 1
+#define baseline_flag 0
+#define rise_flag 1
+#define adc_flag 1
+
+#define N_BOARD 3
+#define N_CH 16
+#define N_CLOCK 4096
+
+int side=0;
+int ch=0;
+int move_ave(UShort_t wave[],int length,int ave_n);
+int trapezoidal(UShort_t wave[],int length,int L,int G);
+
+int rADC_col(int _iEventBegin = 0,
+	     int _iEventEnd = -1){ 
+
+  auto tree = dynamic_cast<TTree*>(gROOT->FindObject("tree"));
+  if(!tree){
+    std::cerr << "Tree NOT found." <<std::endl;
+    return 1;
+  }
+
+  
+  int N=tree->GetEntries();
+  cout << "all event :" << N << endl;
+  
+  int baseline[N_BOARD][N_CH] ={};
+  int ADC[N_BOARD][N_CH] = {};
+  UShort_t data[N_BOARD][N_CH][N_CLOCK] = {};
+  tree->SetBranchAddress("baseline",baseline);
+  tree->SetBranchAddress("ADC",ADC);
+  tree->SetBranchAddress("data",data);
+
+  tree->GetEntry(0);
+
+    
+  TH1F* h_adc[N_BOARD][N_CH];
+  TH1F* h_rise[N_BOARD][N_CH];
+  TH1F* h_noise[N_BOARD][N_CH];
+  TH2F* h_hit;
+  
+  for(int iBoard = 0; iBoard < N_BOARD; ++iBoard){
+      for(int iCh = 0; iCh < N_CH; ++iCh){
+	std::ostringstream ssHistNameADC;
+	ssHistNameADC << "adc_"
+		       << std::setw(2) << std::setfill('0') << iBoard << "_"
+		       << std::setw(2) << std::setfill('0') << iCh;
+
+
+ 
+	h_adc[iBoard][iCh] = new TH1F(ssHistNameADC.str().c_str(),
+				   ssHistNameADC.str().c_str(),
+				   400, -1000, 9000);
+
+	std::ostringstream ssHistNameRise;
+	ssHistNameRise << "rise_"
+		       << std::setw(2) << std::setfill('0') << iBoard << "_"
+		       << std::setw(2) << std::setfill('0') << iCh;
+
+	h_rise[iBoard][iCh] = new TH1F(ssHistNameRise.str().c_str(),
+				       ssHistNameRise.str().c_str(),
+				       1600,0,1600);	
+
+	
+	std::ostringstream ssHistNameNoise;
+	ssHistNameNoise << "noise_"
+		       << std::setw(2) << std::setfill('0') << iBoard << "_"
+		       << std::setw(2) << std::setfill('0') << iCh;
+
+	h_noise[iBoard][iCh] = new TH1F(ssHistNameNoise.str().c_str(),
+					ssHistNameNoise.str().c_str(),
+					1000,0,1000);	
+
+	
+      }
+  }
+
+  h_hit = new TH2F("hit", "hit pattern board 1 vs board 2", N_CH, 0, N_CH, N_CH, 0, N_CH);	
+  h_hit->GetYaxis()->SetTitle("board 1 ch");
+  h_hit->GetXaxis()->SetTitle("board 2 ch");
+  
+  int iEventBegin = _iEventBegin <= 0 ? 0 : std::min(_iEventBegin, N);
+  int iEventEnd = _iEventEnd < 0 ? N : std::min(_iEventEnd, N);
+  std::cout << iEventBegin << " -- " << iEventEnd << std::endl;
+  for(int i=iEventBegin;i < iEventEnd; i++){
+    
+    if(i % 1000 == 0){
+      cout << "\rEvent:" << i << std::flush;
+    }
+
+    tree->GetEntry(i);
+    const int kNoHit = -1;
+    const int kMultiHit = -100;
+    auto is_single_hit = [](int& _i)->bool{return (0 <= _i && _i < N_CH);};
+    std::vector<int> hit_ch(N_BOARD, kNoHit);
+
+    for(int iBoard = 0; iBoard < N_BOARD; ++iBoard){
+      //if(iBoard!=0) continue;
+	for(int iCh = 0; iCh < N_CH; ++iCh){
+	  //if(iCh>4) break;
+	  double baseline_cor = 0;
+	  double baseline_sigma =0;
+	  double ADC_cor = -1;
+	  int clkRiseBegin = N_CLOCK;
+	  int clkRiseEnd = N_CLOCK;
+	  double tRise = -1;
+
+	  double baseline_square_mean = 0;
+	  for(int iClock=450; iClock < 550; iClock++){
+	    double signal = data[iBoard][iCh][iClock];
+	    baseline_square_mean += signal * signal /100;
+	    baseline_cor += signal/100;
+	  }
+	  baseline_sigma = sqrt(baseline_square_mean - baseline_cor * baseline_cor);
+	  
+	  move_ave(data[iBoard][iCh], LENGTH, 3);
+
+	  for(int iClock = 400; iClock < 1100; iClock++){
+	    ADC_cor = std::max(abs(data[iBoard][iCh][iClock] - baseline_cor), ADC_cor);
+	  }	
+
+	for(int iClock = 400; iClock < 1100; iClock++){
+	  double signal_height = abs(data[iBoard][iCh][iClock]-baseline_cor);
+	  double peak = ADC_cor;
+	  if(peak * 0.05 < signal_height){
+	    clkRiseBegin = std::min(iClock, clkRiseBegin);
+	  }
+	  if(peak * 0.80 < signal_height){
+	    clkRiseEnd = std::min(iClock, clkRiseEnd);
+	  }
+	}
+
+	if(ADC_cor>10000) continue;
+	if(ADC_cor<2000) continue;
+
+	if(hit_ch.at(iBoard) == kNoHit){
+	  hit_ch.at(iBoard) = iCh;
+	}
+	else
+	{
+	  hit_ch.at(iBoard) = kMultiHit;
+	}
+
+	tRise = clkRiseEnd - clkRiseBegin;
+	h_adc[iBoard][iCh]->Fill(ADC_cor);
+	h_rise[iBoard][iCh]->Fill(tRise);
+	h_noise[iBoard][iCh]->Fill(baseline_sigma);
+	}
+    }
+
+    if(hit_ch.size() >= 2 &&
+       is_single_hit(hit_ch.at(0)) &&
+       is_single_hit(hit_ch.at(1))){
+      h_hit->Fill(hit_ch.at(1), hit_ch.at(0));
+    }
+    // else{
+    //   std::cout << hit_ch.at(0) << " and " << hit_ch.at(1) <<std::endl;
+    //   std::cout << std::boolalpha  << "    " << is_single_hit(hit_ch.at(0)) << "  " << is_single_hit(hit_ch.at(1)) <<std::endl;
+    // }
+       
+  }
+  
+  
+  return 0;
+}
+
+//-------------------filter-----------------------//
+int move_ave(UShort_t wave[],int length,int ave_n){
+  for(int j=0; j<LENGTH-ave_n; j++){
+	  int tmp=0;
+	  for(int k=0; k<ave_n; k++){
+	    tmp+=wave[j+k]/(ave_n);
+	  }
+	  wave[j]=tmp;
+  }
+  return 0;
+}
+
+int trapezoidal(UShort_t wave[],int length,int L,int G){
+  for(int j=0; j<LENGTH-(2*L+G); j++){
+    int tmp=0;
+    for(int k=0;k<L;k++){
+      tmp+=wave[j+k]*(-1/L);
+    }
+    for(int k=0;k<G;k++){
+      tmp+=wave[j+k]*0;
+    }
+    for(int k=0;k<L;k++){
+      tmp+=wave[j+k]*(1/L);
+    }
+  }
+  return 0;
+}

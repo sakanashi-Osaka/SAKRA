@@ -1,0 +1,49 @@
+TGraph *g_proton;
+
+int proton_ave(){
+  tree->Draw(">>elist","ADC[0][0]>0");
+  TEventList *elist= (TEventList*)gROOT->FindObject("elist");
+
+  int N=elist->GetN();
+  cout << "all event :" << N << endl;
+
+  int baseline[2][16]={};
+  int ADC[2][16]={};
+  UShort_t data[2][16][4096]={};
+  tree->SetBranchAddress("baseline",baseline);
+  tree->SetBranchAddress("ADC",ADC);
+  tree->SetBranchAddress("data",data);
+
+  int count=0;
+  double sum[4096]={};
+  double ave[4096]={};
+
+  for(int i=0;i<N;i++){
+    tree->GetEntry(elist->GetEntry(i));
+    int temp=0;
+    if(4000<ADC[0][0] && ADC[0][0]<5000){
+      count++;
+      for(int j=0;j<4096;j++){
+	sum[j]+=((int)data[0][0][j]-baseline[0][0])/(double)ADC[0][0];
+      }
+    }
+  }
+
+  double Clk[4096]={};
+  cout << "count " << ":" << count << endl;
+  for(int j=0;j<4096;j++){
+    Clk[j]=j;
+    ave[j]=(double)sum[j]/count;
+  }
+  g_proton=new TGraph(4096,Clk,ave);
+  g_proton->SetMarkerStyle(1);
+  g_proton->SetMarkerColor(4);
+  //g_proton->GetYaxis()->SetRangeUser(0,9000);
+  g_proton->GetYaxis()->SetRangeUser(0,1);
+  g_proton->GetXaxis()->SetRangeUser(400,1000);
+
+  g_proton->SetTitle("proton 3MeV");
+  g_proton->Draw("AP");
+
+  return 0;
+}
